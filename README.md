@@ -49,7 +49,7 @@ Aplikasi ini dibangun menggunakan teknologi terkini untuk memastikan performa ma
 
 1. **Clone repositori ini:**
    ```bash
-   git clone https://github.com/username/flownote.git
+   git clone https://github.com/grsll/flownote_app.git
    ```
 
 2. **Dapatkan paket dependensi:**
