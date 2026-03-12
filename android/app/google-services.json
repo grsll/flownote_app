@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "176625060286",
+    "project_id": "flownote-2914a",
+    "storage_bucket": "flownote-2914a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:176625060286:android:9465fd532e6b6ac178d1ef",
+        "android_client_info": {
+          "package_name": "com.example.flownote"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqv5QnyYTax0dleQ64IhGxIATS-NOPw88"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
