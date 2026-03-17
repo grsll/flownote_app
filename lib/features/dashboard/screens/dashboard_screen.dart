@@ -61,10 +61,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final symbol  = ref.watch(currencySymbolProvider);
 
     final summary     = txState.summary;
-    final allTime     = summary?['allTime'] as Map<String, dynamic>?;
-    final balance     = (allTime?['balance']       as num?)?.toDouble() ?? 0.0;
-    final monthIncome = (summary?['total_income']  as num?)?.toDouble() ?? 0.0;
-    final monthExp    = (summary?['total_expense'] as num?)?.toDouble() ?? 0.0;
+    final balance     = summary['balance']  ?? 0.0;
+    final monthIncome = summary['income']   ?? 0.0;
+    final monthExp    = summary['expense']  ?? 0.0;
 
     final recent5   = txState.transactions.take(5).toList();
     final chartData = txState.chartData;

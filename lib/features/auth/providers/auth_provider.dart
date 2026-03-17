@@ -1,149 +1,178 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flownote/core/error/failures.dart';
+import 'package:flownote/core/providers/repository_providers.dart';
+import 'package:flownote/features/authentication/domain/repositories/auth_repository.dart';
 import 'package:flownote/models/user_model.dart';
-import 'package:flownote/services/auth_service.dart';
 
-// ── Auth Status ───────────────────────────────────────────────────────────────
+// ── Auth Status ────────────────────────────────────────────────────────────────
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
+// ── Auth State ─────────────────────────────────────────────────────────────────
 class AuthState {
-  final AuthStatus  status;
-  final UserModel?  user;
-  final String?     error;
-  final bool        isLoading;
+  final AuthStatus status;
+  final UserModel? user;
+  final Failure?   failure;
+  final bool       isLoading;
 
   const AuthState({
     this.status    = AuthStatus.unknown,
     this.user,
-    this.error,
+    this.failure,
     this.isLoading = false,
   });
+
+  String? get errorMessage => failure?.message;
 
   AuthState copyWith({
     AuthStatus? status,
     UserModel?  user,
-    String?     error,
+    Failure?    failure,
     bool?       isLoading,
+    bool        clearFailure = false,
   }) {
     return AuthState(
       status:    status    ?? this.status,
       user:      user      ?? this.user,
-      error:     error,           // Allow explicit null to clear error
+      failure:   clearFailure ? null : (failure ?? this.failure),
       isLoading: isLoading ?? this.isLoading,
     );
   }
 }
 
-// ── Auth Notifier ─────────────────────────────────────────────────────────────
+// ── Auth Notifier ──────────────────────────────────────────────────────────────
 class AuthNotifier extends StateNotifier<AuthState> {
-  final AuthService _service;
+  final AuthRepository _repository;
+  StreamSubscription<UserModel?>? _authSub;
 
-  AuthNotifier(this._service) : super(const AuthState()) {
-    // Dengarkan perubahan auth state dari Firebase secara real-time
-    _service.authStateChanges.listen((User? firebaseUser) {
-      if (firebaseUser != null) {
-        state = AuthState(
-          status: AuthStatus.authenticated,
-          user: UserModel.fromFirebase(firebaseUser),
-        );
+  AuthNotifier(this._repository) : super(const AuthState()) {
+    _listenToAuthChanges();
+  }
+
+  void _listenToAuthChanges() {
+    _authSub = _repository.authStateChanges.listen((user) {
+      if (user != null) {
+        state = AuthState(status: AuthStatus.authenticated, user: user);
       } else {
         state = const AuthState(status: AuthStatus.unauthenticated);
       }
     });
   }
 
-  /// Login dengan Email & Password
+  // ── Login ──────────────────────────────────────────────────────────────────
+
   Future<bool> login(String email, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final user = await _service.login(email: email, password: password);
-      if (user != null) {
-        state = AuthState(status: AuthStatus.authenticated, user: user);
-        return true;
-      }
-      state = state.copyWith(isLoading: false, error: 'Login gagal');
-      return false;
-    } on FirebaseAuthException catch (e) {
-      final message = _mapFirebaseError(e.code);
-      state = state.copyWith(isLoading: false, error: message);
-      return false;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Terjadi kesalahan. Coba lagi.');
+    state = state.copyWith(isLoading: true, clearFailure: true);
+    final (failure, user) = await _repository.login(email: email, password: password);
+    if (failure != null) {
+      state = state.copyWith(isLoading: false, failure: failure);
       return false;
     }
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+    return true;
   }
 
-  /// Register dengan Email & Password
+  // ── Register ───────────────────────────────────────────────────────────────
+
   Future<bool> register(String name, String email, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final user = await _service.register(name: name, email: email, password: password);
-      if (user != null) {
-        state = AuthState(status: AuthStatus.authenticated, user: user);
-        return true;
-      }
-      state = state.copyWith(isLoading: false, error: 'Registrasi gagal');
-      return false;
-    } on FirebaseAuthException catch (e) {
-      final message = _mapFirebaseError(e.code);
-      state = state.copyWith(isLoading: false, error: message);
-      return false;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Terjadi kesalahan. Coba lagi.');
+    state = state.copyWith(isLoading: true, clearFailure: true);
+    final (failure, user) = await _repository.register(
+      name:     name,
+      email:    email,
+      password: password,
+    );
+    if (failure != null) {
+      state = state.copyWith(isLoading: false, failure: failure);
       return false;
     }
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+    return true;
   }
 
-  /// Login dengan Google
+  // ── Google Sign-In ─────────────────────────────────────────────────────────
+
   Future<bool> loginWithGoogle() async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final user = await _service.signInWithGoogle();
-      if (user != null) {
-        state = AuthState(status: AuthStatus.authenticated, user: user);
-        return true;
-      }
-      // User membatalkan Google Sign-In
-      state = state.copyWith(isLoading: false, error: null);
-      return false;
-    } on FirebaseAuthException catch (e) {
-      final message = _mapFirebaseError(e.code);
-      state = state.copyWith(isLoading: false, error: message);
-      return false;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Google Sign-In gagal. Coba lagi.');
+    state = state.copyWith(isLoading: true, clearFailure: true);
+    final (failure, user) = await _repository.signInWithGoogle();
+    if (failure != null) {
+      state = state.copyWith(isLoading: false, failure: failure);
       return false;
     }
+    if (user == null) {
+      // User cancelled — no error, just stop loading
+      state = state.copyWith(isLoading: false);
+      return false;
+    }
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+    return true;
   }
 
-  /// Logout
+  // ── Logout ─────────────────────────────────────────────────────────────────
+
   Future<void> logout() async {
-    await _service.logout();
+    await _repository.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
-  /// Hapus pesan error
-  void clearError() => state = state.copyWith(error: null);
+  // ── Update Profile ─────────────────────────────────────────────────────────
 
-  /// Map Firebase error code ke pesan yang ramah pengguna
-  String _mapFirebaseError(String code) {
-    switch (code) {
-      case 'user-not-found':       return 'Email tidak terdaftar.';
-      case 'wrong-password':       return 'Password salah.';
-      case 'email-already-in-use': return 'Email sudah digunakan akun lain.';
-      case 'weak-password':        return 'Password terlalu lemah (min. 6 karakter).';
-      case 'invalid-email':        return 'Format email tidak valid.';
-      case 'too-many-requests':    return 'Terlalu banyak percobaan. Coba lagi nanti.';
-      case 'network-request-failed': return 'Tidak ada koneksi internet.';
-      case 'invalid-credential':   return 'Email atau password salah.';
-      default: return 'Terjadi kesalahan ($code). Coba lagi.';
+  Future<bool> updateProfile({
+    String? name,
+    String? avatarUrl,
+    String? currency,
+    String? language,
+    UserSettings? settings,
+  }) async {
+    final failure = await _repository.updateProfile(
+      name:      name,
+      avatarUrl: avatarUrl,
+      currency:  currency,
+      language:  language,
+      settings:  settings,
+    );
+    if (failure != null) {
+      state = state.copyWith(failure: failure);
+      return false;
     }
+    // Refresh user in state
+    if (state.user != null) {
+      state = state.copyWith(
+        user: state.user!.copyWith(
+          name:      name,
+          avatarUrl: avatarUrl,
+          currency:  currency,
+          language:  language,
+          settings:  settings,
+        ),
+        clearFailure: true,
+      );
+    }
+    return true;
+  }
+
+  // ── Utils ──────────────────────────────────────────────────────────────────
+
+  void clearError() => state = state.copyWith(clearFailure: true);
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 }
 
-// ── Providers ─────────────────────────────────────────────────────────────────
-final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+// ── Providers ──────────────────────────────────────────────────────────────────
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(ref.read(authServiceProvider));
+  return AuthNotifier(ref.watch(authRepositoryProvider));
+});
+
+/// Convenience: current signed-in user (or null)
+final currentUserProvider = Provider<UserModel?>((ref) {
+  return ref.watch(authProvider).user;
+});
+
+/// Convenience: is user authenticated
+final isAuthenticatedProvider = Provider<bool>((ref) {
+  return ref.watch(authProvider).status == AuthStatus.authenticated;
 });

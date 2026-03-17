@@ -5,6 +5,7 @@ import 'package:flownote/core/theme/app_theme.dart';
 import 'package:flownote/core/providers/currency_provider.dart';
 import 'package:flownote/features/finance/providers/transaction_provider.dart';
 import 'package:flownote/features/dashboard/providers/dashboard_provider.dart';
+import 'package:flownote/models/transaction_model.dart';
 import 'package:flownote/widgets/common_widgets.dart';
 import 'package:intl/intl.dart';
 
@@ -64,17 +65,23 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     setState(() => _isLoading = true);
 
     try {
-      final ok = await ref.read(transactionProvider.notifier).createTransaction(
-        title:         _titleCtrl.text.trim(),
-        amount:        amount,
-        type:          _type,
-        categoryId:    _categoryId,
-        categoryName:  _categoryName,
-        categoryIcon:  _categoryIcon,
-        categoryColor: _categoryColor,
-        date:          DateFormat('yyyy-MM-dd').format(_date),
-        note:          _noteCtrl.text.isEmpty ? null : _noteCtrl.text.trim(),
+      final now  = DateTime.now();
+      final tx   = TransactionModel(
+        id:           '',                                   // Firestore will assign
+        userId:       '',                                   // Repository fills from Auth
+        title:        _titleCtrl.text.trim(),
+        amount:       amount,
+        type:         TransactionType.fromString(_type),
+        categoryId:   _categoryId,
+        categoryName: _categoryName,
+        categoryIcon: _categoryIcon,
+        categoryColor:_categoryColor,
+        date:         _date,
+        note:         _noteCtrl.text.isEmpty ? null : _noteCtrl.text.trim(),
+        createdAt: now,
+        updatedAt: now,
       );
+      final ok = await ref.read(transactionProvider.notifier).createTransaction(tx);
 
       if (mounted) {
         Navigator.pop(context);

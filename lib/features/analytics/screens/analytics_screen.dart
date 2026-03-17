@@ -31,14 +31,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     final txState = ref.watch(transactionProvider);
-    final summary = txState.summary;
     final symbol  = ref.watch(currencySymbolProvider);
     final isDark  = Theme.of(context).brightness == Brightness.dark;
 
-    final monthly   = summary?['monthly'] as Map<String, dynamic>?;
-    final income    = double.tryParse(monthly?['income']?.toString() ?? '0') ?? 0;
-    final expense   = double.tryParse(monthly?['expense']?.toString() ?? '0') ?? 0;
-    final breakdown = summary?['categoryBreakdown'] as List? ?? [];
+    final income    = txState.summary['income']  ?? 0.0;
+    final expense   = txState.summary['expense'] ?? 0.0;
+    final breakdown = <dynamic>[];
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,

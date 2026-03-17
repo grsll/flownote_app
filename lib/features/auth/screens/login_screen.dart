@@ -57,7 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _passCtrl.text.trim(),
     );
     if (!ok && mounted) {
-      final error = ref.read(authProvider).error;
+      final error = ref.read(authProvider).errorMessage;
       _showError(error ?? 'Login gagal');
     }
   }
@@ -67,7 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final ok = await ref.read(authProvider.notifier).loginWithGoogle();
     if (mounted) setState(() => _googleLoading = false);
     if (!ok && mounted) {
-      final error = ref.read(authProvider).error;
+      final error = ref.read(authProvider).errorMessage;
       if (error != null) _showError(error);
     }
   }

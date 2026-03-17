@@ -39,10 +39,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   Widget build(BuildContext context) {
     final txState = ref.watch(transactionProvider);
     final symbol  = ref.watch(currencySymbolProvider);
-    final summary = txState.summary;
-    final income  = (summary?['total_income']  as num?)?.toDouble() ?? 0.0;
-    final expense = (summary?['total_expense'] as num?)?.toDouble() ?? 0.0;
-    final balance = (summary?['balance']       as num?)?.toDouble() ?? 0.0;
+    final income  = txState.summary['income']  ?? 0.0;
+    final expense = txState.summary['expense'] ?? 0.0;
+    final balance = txState.summary['balance'] ?? 0.0;
     final isDark  = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -85,7 +84,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   controller: _tabCtrl,
                   onTap: (i) {
                     setState(() => _activeFilter = i);
-                    final types = [null, 'income', 'expense'];
+                    final types = [null, TransactionType.income, TransactionType.expense];
                     ref.read(transactionProvider.notifier).setFilter(type: types[i]);
                   },
                   tabs: const [
@@ -326,7 +325,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 onPressed: () {
                   setState(() => _activeFilter = 0);
                   _tabCtrl.animateTo(0);
-                  ref.read(transactionProvider.notifier).clearFilter();
+                   ref.read(transactionProvider.notifier).clearFilters();
                   Navigator.pop(ctx);
                 },
               )),
